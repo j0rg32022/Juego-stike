@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Juego Stike</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background-color: #1e1e1e;
+      color: white;
+      margin: 0;
+      padding: 20px;
+    }
+    #game {
+      display: none;
+      margin-top: 50px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 18px;
+      margin-top: 10px;
+      cursor: pointer;
+    }
+    .hidden {
+      display: none;
+    }
+    #touch-area {
+      margin-top: 30px;
+      padding: 50px;
+      background-color: #333;
+      border-radius: 10px;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Juego Stike</h1>
+
+  <div id="login">
+    <p>Usuario: <input type="text" id="user" /></p>
+    <p>Contraseña: <input type="password" id="pass" /></p>
+    <button onclick="login()">Ingresar</button>
+    <p id="error" style="color: red;"></p>
+  </div>
+
+  <div id="game">
+    <h2>Contador: <span id="counter">0</span> / 200</h2>
+    <h3>Tiempo: <span id="time">0.0</span>s</h3>
+    <div id="touch-area" onclick="increment()" ontouchstart="increment()">📱 Toca aquí</div>
+    <p id="result" style="font-size: 24px; margin-top: 20px;"></p>
+  </div>
+
+  <script>
+    let contador = 0;
+    let tiempo = 0;
+    let tiempoInterval;
+    let tiempoActivo = false;
+    let velocidad = 100; // 100 ms = velocidad normal
+    let juegoTerminado = false;
+    let tiempoLimite = 50000; // 50 segundos
+
+    function login() {
+      const user = document.getElementById('user').value;
+      const pass = document.getElementById('pass').value;
+      if (user === 'jorge' && pass === 'jorge') {
+        document.getElementById('login').style.display = 'none';
+        document.getElementById('game').style.display = 'block';
+        iniciarTiempo();
+      } else {
+        document.getElementById('error').innerText = 'Usuario o contraseña incorrectos.';
+      }
+    }
+
+    function iniciarTiempo() {
+      tiempoActivo = true;
+      tiempoInterval = setInterval(() => {
+        tiempo += velocidad === 100 ? 0.1 : 0.05;
+        document.getElementById('time').innerText = tiempo.toFixed(1);
+        if (tiempo >= 50 && !juegoTerminado) {
+          terminarJuego(false);
+        }
+      }, velocidad);
+    }
+
+    function toggleVelocidad() {
+      velocidad = velocidad === 100 ? 200 : 100;
+      clearInterval(tiempoInterval);
+      iniciarTiempo();
+    }
+
+    function increment() {
+      if (juegoTerminado) return;
+      contador++;
+      document.getElementById('counter').innerText = contador;
+      if (contador >= 200) {
+        terminarJuego(true);
+      }
+    }
+
+    function terminarJuego(gano) {
+      juegoTerminado = true;
+      clearInterval(tiempoInterval);
+      const resultado = document.getElementById('result');
+      resultado.innerText = gano ? '¡Ganaste!' : 'Perdiste 😢';
+    }
+
+    // Espacio suma 1 (solo al presionar, no mantener)
+    let spacePressed = false;
+    document.addEventListener('keydown', function (e) {
+      if (e.code === 'Space' && !spacePressed) {
+        increment();
+        spacePressed = true;
+      }
+      if (e.ctrlKey) {
+        toggleVelocidad();
+      }
+    });
+    document.addEventListener('keyup', function (e) {
+      if (e.code === 'Space') {
+        spacePressed = false;
+      }
+    });
+  </script>
+
+</body>
+</html>
