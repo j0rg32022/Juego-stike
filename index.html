@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Juego con Lobby Animado</title>
+<style>
+  body {
+    margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(270deg, #ff9a9e, #fad0c4, #fad0c4, #ff9a9e);
+    background-size: 800% 800%;
+    animation: GradientAnimation 20s ease infinite;
+    color: #222;
+  }
+  @keyframes GradientAnimation {
+    0%{background-position:0% 50%}
+    50%{background-position:100% 50%}
+    100%{background-position:0% 50%}
+  }
+  #lobby {
+    max-width: 800px; margin: 20px auto; background: rgba(255,255,255,0.95);
+    border-radius: 12px; padding: 20px; box-shadow: 0 0 15px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  #game {
+    display: none;
+    max-width: 800px; margin: 20px auto; padding: 20px;
+  }
+  h1 {
+    text-align: center; margin-bottom: 10px; color: #5a2a83;
+  }
+  .panel {
+    background: #f4f4f4; border-radius: 8px; padding: 15px; margin: 15px 0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+  .panel:hover {
+    transform: scale(1.03);
+    box-shadow: 0 4px 16px rgba(90,42,131,0.4);
+  }
+  #progresoNivel {
+    background: #ddd; border-radius: 20px; overflow: hidden; margin-top: 10px;
+  }
+  #barraProgreso {
+    height: 18px; background: #6a2aeb; width: 0;
+    border-radius: 20px 0 0 20px;
+    transition: width 0.5s ease;
+  }
+  button {
+    background: #6a2aeb; color: white; border: none; padding: 10px 16px; border-radius: 8px;
+    cursor: pointer; font-weight: 600;
+    box-shadow: 0 3px 8px rgba(106,42,235,0.5);
+    transition: background 0.3s ease;
+  }
+  button:hover {
+    background: #8b4dff;
+  }
+  input[type="text"] {
+    padding: 8px; border-radius: 8px; border: 1.5px solid #6a2aeb;
+    width: calc(100% - 20px);
+    margin-top: 8px;
+  }
+  #chatFake {
+    background: #e1d9f7; border-radius: 10px; height: 150px; overflow-y: auto;
+    padding: 10px; font-style: italic; color: #4a2a8a; font-weight: 500;
+    margin-top: 15px;
+    box-shadow: inset 0 0 8px rgba(106,42,235,0.2);
+  }
+  #tienda {
+    position: absolute;
+    top: 20px; right: 20px;
+    width: 220px;
+    background: #fff; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    padding: 12px;
+  }
+  #tienda h2 {
+    font-size: 1.2rem; color: #6a2aeb; margin: 0 0 10px 0;
+    text-align: center;
+  }
+  .itemTienda {
+    background: #fafafa; border-radius: 8px; margin-bottom: 12px;
+    padding: 8px 10px; display: flex; justify-content: space-between; align-items: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  .itemTienda:hover {
+    background: #ece1ff;
+  }
+  .itemTienda span {
+    font-weight: 600; color: #6a2aeb;
+  }
+  #monedasDisplay {
+    font-weight: 700; color: #6a2aeb;
+  }
+  #nivelActualDisplay {
+    font-weight: 700; color: #a34fff;
+  }
+  #nombreJugadorDisplay {
+    font-weight: 700; color: #4a2a8a;
+  }
+</style>
+</head>
+<body>
+
+<div id="lobby">
+  <h1>Bienvenido al Lobby, <span id="nombreJugadorDisplay">Jugador</span>!</h1>
+
+  <div class="panel">
+    <p>Monedas: <span id="monedasDisplay">0</span></p>
+    <p>Nivel: <span id="nivelActualDisplay">1</span></p>
+    <div id="progresoNivel">
+      <div id="barraProgreso"></div>
+    </div>
+    <button onclick="cambiarNombre()">Cambiar Nombre</button>
+  </div>
+
+  <div class="panel" id="chatFake">
+    <p><strong>Chat:</strong></p>
+  </div>
+
+  <button onclick="empezarJuego()">¡Jugar Ahora!</button>
+
+  <div id="tienda">
+    <h2>Tienda</h2>
+    <div id="itemsTienda"></div>
+  </div>
+</div>
+
+<div id="game">
+  <h2>Presiona ESPACIO para golpear</h2>
+  <p>Golpes: <span id="golpesDisplay">0</span> / <span id="metaGolpes">200</span></p>
+  <p>Tiempo: <span id="tiempoDisplay">0.00</span> segundos</p>
+  <button onclick="volverLobby()">Volver al Lobby</button>
+</div>
+
+<script>
+  // Variables globales
+  let monedas = 0;
+  let nivelActual = 1;
+  let golpes = 0;
+  let metaGolpes = 200;
+  let tiempo = 0;
+  let tiempoIntervalo = null;
+  let velocidadNormal = 1;
+  let velocidadLenta = 0.3;
+  let velocidadActual = velocidadNormal;
+  let tiempoAcumulado = 0;
+  let juegoActivo = false;
+  let nombreJugador = 'Jugador';
+  let espacioPresionado = false;
+
+  // Tienda: items que incrementan golpes por golpe o skins
+  const itemsTiendaLista = [
+    {id:1, nombre:"Golpe x5 (10 monedas)", precio: 10, multiplicador:5, comprado:false},
+    {id:2, nombre:"Golpe x10 (30 monedas)", precio: 30, multiplicador:10, comprado:false},
+    {id:3, nombre:"Skin Espada Morada (50 monedas)", precio: 50, skin:true, comprado:false},
+    {id:4, nombre:"Skin Espada Dorada (100 monedas)", precio: 100, skin:true, comprado:false},
+  ];
+
+  // Multiplicador actual de golpes
+  let golpeMultiplicador = 1;
+  let skinActiva = null;
+
+  // Actualiza la tienda visualmente
+  function actualizarTienda() {
+    const contenedor = document.getElementById('itemsTienda');
+    contenedor.innerHTML = '';
+    itemsTiendaLista.forEach(item => {
+      let botonTexto = item.comprado ? 'Comprado' : `Comprar - ${item.precio} monedas`;
+      let disabled = item.comprado ? 'disabled' : '';
+      const div = document.createElement('div');
+      div.className = 'itemTienda';
+      div.innerHTML = `<span>${item.nombre}</span><button onclick="comprarItem(${item.id})" ${disabled}>${botonTexto}</button>`;
+      contenedor.appendChild(div);
+    });
+  }
+
+  // Comprar item de tienda
+  function comprarItem(id){
+    const item = itemsTiendaLista.find(i => i.id === id);
+    if(!item) return alert('Item no encontrado.');
+    if(item.comprado) return alert('Ya comprado.');
+
+    if(monedas >= item.precio){
+      monedas -= item.precio;
+      item.comprado = true;
+      if(item.multiplicador) golpeMultiplicador = item.multiplicador;
+      if(item.skin) skinActiva = item.nombre;
+      actualizarMonedas();
+      actualizarTienda();
+      alert(`Compraste: ${item.nombre}`);
+    } else {
+      alert('No tienes suficientes monedas.');
+    }
+  }
+
+  // Función para cambiar nombre
+  function cambiarNombre(){
+    let nuevoNombre = prompt('Ingresa tu nuevo nombre:', nombreJugador);
+    if(nuevoNombre && nuevoNombre.trim().length > 0){
+      nombreJugador = nuevoNombre.trim();
+      document.getElementById('nombreJugadorDisplay').innerText = nombreJugador;
+    }
+  }
+
+  // Actualizar monedas en lobby
+  function actualizarMonedas(){
+    document.getElementById('monedasDisplay').innerText = monedas;
+  }
+
+  // Actualizar nivel en lobby
+  function actualizarNivel(){
+    document.getElementById('nivelActualDisplay').innerText = nivelActual;
+    // Actualizar barra de progreso: progreso = golpes/metaGolpes * 100%
+    let progreso = (golpes / metaGolpes) * 100;
+    if(progreso > 100) progreso = 100;
+    document.getElementById('barraProgreso').style.width = progreso + '%';
+  }
+
+  // Actualizar la pantalla de juego con golpes y tiempo
+  function actualizarJuegoDisplay(){
+    document.getElementById('golpesDisplay').innerText = golpes;
+    document.getElementById('tiempoDisplay').innerText = tiempo.toFixed(2);
+  }
+
+  // Empezar juego
+  function empezarJuego(){
+    document.getElementById('lobby').style.display = 'none';
+    document.getElementById('game').style.display = 'block';
+    golpes = 0;
+    tiempo = 0;
+    tiempoAcumulado = 0;
+    velocidadActual = velocidadNormal;
+    juegoActivo = true;
+    actualizarJuegoDisplay();
+    iniciarTemporizador();
+  }
+
+  // Volver al lobby
+  function volverLobby(){
+    juegoActivo = false;
+    clearInterval(tiempoIntervalo);
+    document.getElementById('game').style.display = 'none';
+    document.getElementById('lobby').style.display = 'block';
+    actualizarMonedas();
+    actualizarNivel();
+    actualizarTienda();
+  }
+
+  // Temporizador para contar tiempo y perder si pasa 50 segundos
+  function iniciarTemporizador(){
+    clearInterval(tiempoIntervalo);
+    tiempoIntervalo = setInterval(() => {
+      tiempo += 0.1 * velocidadActual;
+      tiempoAcumulado += 0.1 * velocidadActual;
+      actualizarJuegoDisplay();
+
+      if(tiempoAcumulado >= 50){
+        clearInterval(tiempoIntervalo);
+        alert('¡Perdiste! Pasaron más de 50 segundos.');
+        volverLobby();
+      }
+    }, 100);
+  }
+
+  // Contador de golpes - SOLO cuenta 1 golpe por cada pulsación rápida (no mantener presionado)
+  window.addEventListener('keydown', (e) => {
+    if(!juegoActivo) return;
+
+    if(e.code === 'Space' && !espacioPresionado){
+      espacioPresionado = true;
+      golpes += golpeMultiplicador;
+      actualizarJuegoDisplay();
+
+      if(golpes >= metaGolpes){
+        clearInterval(tiempoIntervalo);
+        alert(`¡Nivel ${nivelActual} completado! Ganaste ${nivelActual * 20} monedas.`);
+        monedas += nivelActual * 20;
+        nivelActual++;
+        metaGolpes += 50; // incrementa dificultad cada nivel
+        volverLobby();
+      }
+    }
+    // Truco monedas SHIFT + M
+    if(e.shiftKey && e.code === 'KeyM'){
+      monedas += 100;
+      actualizarMonedas();
+    }
+    // Cambiar velocidad con CONTROL
+    if(e.code === 'ControlLeft' || e.code === 'ControlRight'){
+      velocidadActual = (velocidadActual === velocidadNormal) ? velocidadLenta : velocidadNormal;
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    if(e.code === 'Space'){
+      espacioPresionado = false;
+    }
+  });
+
+  // También soportar click en pantalla (móvil) como golpe único
+  window.addEventListener('touchstart', (e) => {
+    if(!juegoActivo) return;
+    golpes += golpeMultiplicador;
+    actualizarJuegoDisplay();
+
+    if(golpes >= metaGolpes){
+      clearInterval(tiempoIntervalo);
+      alert(`¡Nivel ${nivelActual} completado! Ganaste ${nivelActual * 20} monedas.`);
+      monedas += nivelActual * 20;
+      nivelActual++;
+      metaGolpes += 50;
+      volverLobby();
+    }
+  });
+
+  // Mensajes para chat fake
+  const mensajesMotivacion = [
+    "¡Sigue así, casi lo logras!",
+    "Eres imparable!",
+    "Cada golpe cuenta!",
+    "La práctica hace al maestro.",
+    "Nivel up, ¡vamos!",
+    "No te rindas, campeón.",
+    "¡Cuidado con el tiempo!",
+    "¡Estás rompiendo récords!",
+    "¡Sigue con ese ritmo!",
+    "¡Eres un crack!"
+  ];
+  function agregarMensajeChat(){
+    const chat = document.getElementById('chatFake');
+    let msg = mensajesMotivacion[Math.floor(Math.random() * mensajesMotivacion.length)];
+    let p = document.createElement('p');
+    p.textContent = msg;
+    chat.appendChild(p);
+    chat.scrollTop = chat.scrollHeight;
+  }
+  setInterval(agregarMensajeChat, 6000); // Cada 6 segundos un mensaje nuevo
+
+  // Al cargar
+  document.getElementById('nombreJugadorDisplay').innerText = nombreJugador;
+  actualizarMonedas();
+  actualizarNivel();
+  actualizarTienda();
+
+</script>
+
+</body>
+</html>
